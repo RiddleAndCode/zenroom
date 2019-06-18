@@ -19,10 +19,12 @@ GENKEY = import_script("genkey")
 SIGN = import_script("sign")
 VERIFY = import_script("verify")
 
+def parse_output(output):
+    return json.loads(output.decode('utf-8'))
 
 def genkey():
     output, _ = zenroom.execute(GENKEY)
-    return json.loads(output)
+    return parse_output(output)
 
 
 def sign(keys, message):
@@ -31,7 +33,7 @@ def sign(keys, message):
         json.dumps(keys),
         json.dumps({"message": message})
     )
-    out = json.loads(output)
+    out = parse_output(output)
     return out['r'], out['s']
 
 
@@ -45,7 +47,7 @@ def verify(keys, r, s, message):
             "s": s,
         })
     )
-    return json.loads(output)['verified']
+    return parse_output(output)['verified']
 
 
 message = "This is a message"

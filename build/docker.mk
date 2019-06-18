@@ -3,11 +3,18 @@ default: docker-build
 # Build Docker image
 docker-build: _docker_build _output
 
+docker-build-py: DOCKER_FILE=docker/Dockerfile
+docker-build-py: DOCKER_IMAGE=riddleandcode/zenroom-py
+docker-build-py: _docker_build _output
+
 # Build and push Docker image
 docker-release: _docker_build _docker_push _output
 
 # Image and binary can be overidden with env vars.
-DOCKER_IMAGE ?= dyne/zenroom
+DOCKER_IMAGE ?= riddleandcode/zenroom
+
+# Dockerfile
+DOCKER_FILE ?= ./Dockerfile
 
 # Get the latest commit.
 GIT_COMMIT = $(strip $(shell git rev-parse --short HEAD))
@@ -54,7 +61,8 @@ _docker_build:
   --build-arg VERSION=$(CODE_VERSION) \
   --build-arg VCS_URL=`git config --get remote.origin.url` \
   --build-arg VCS_REF=$(GIT_COMMIT) \
-	-t $(DOCKER_IMAGE):$(DOCKER_TAG) .
+  -f $(DOCKER_FILE) \
+  -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
 
 _docker_push:
 	# Tag image as latest

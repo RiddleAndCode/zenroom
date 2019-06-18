@@ -60,6 +60,10 @@ linux-python3: apply-patches lua53 milagro embed-lua
 		make -C src python
 	@mkdir -p ${pwd}/build/python3 && cp -v ${pwd}/src/_zenroom.so ${pwd}/build/python3
 
+musl-python3: gcc := gcc
+musl-python3: ldadd += -lm
+musl-python3: linux-python3
+
 linux-python2: apply-patches lua53 milagro embed-lua
 	swig -python ${pwd}/build/swig.i
 	${gcc} ${cflags} -c ${pwd}/build/swig_wrap.c \

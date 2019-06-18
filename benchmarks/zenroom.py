@@ -12,6 +12,14 @@ _zenroom_so = os.path.join(
     "python3",
     "_zenroom_%s.so" % _python_version
 )
+if not os.path.isfile(_zenroom_so):
+    _zenroom_so = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "build",
+        "python3",
+        "_zenroom.so"
+    )
 _zenroom = ctypes.CDLL(_zenroom_so)
 
 
