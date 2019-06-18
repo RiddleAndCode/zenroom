@@ -7,6 +7,10 @@ docker-build-py: DOCKER_FILE=docker/Dockerfile
 docker-build-py: DOCKER_IMAGE=riddleandcode/zenroom-py
 docker-build-py: _docker_build _output
 
+docker-build-sgx: DOCKER_FILE=docker/Dockerfile.sgx
+docker-build-sgx: DOCKER_IMAGE=riddleandcode/zenroom-sgx
+docker-build-sgx: _docker_build _output
+
 # Build and push Docker image
 docker-release: _docker_build _docker_push _output
 
