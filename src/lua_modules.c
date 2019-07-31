@@ -1,6 +1,6 @@
 /*  Zenroom (DECODE project)
  *
- *  (c) Copyright 2017-2018 Dyne.org foundation
+ *  (c) Copyright 2017-2019 Dyne.org foundation
  *  designed, written and maintained by Denis Roio <jaromil@dyne.org>
  *
  * This source code is free software; you can redistribute it and/or
@@ -29,8 +29,11 @@
 #include <zenroom.h>
 #include <zen_error.h>
 
+// defined in lua_shims.c
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+LUALIB_API int (luaL_loadfilex) (lua_State *L, const char *filename, const char *mode);
+#define luaL_loadfile(L,f)     luaL_loadfilex(L,f,NULL)
 #endif
 
 extern int lualibs_load_all_detected(lua_State *L);
@@ -51,25 +54,25 @@ extern int luaopen_ecp(lua_State *L);
 extern int luaopen_ecp2(lua_State *L);
 extern int luaopen_fp12(lua_State *L);
 extern int luaopen_big(lua_State *L);
-extern int luaopen_rng(lua_State *L);
 extern int luaopen_hash(lua_State *L);
 extern int luaopen_benchmark(lua_State *L);
 
+// really loaded in lib/lua53/linit.c
+// align here for reference
 luaL_Reg lualibs[] = {
-	{LUA_LOADLIBNAME, luaopen_package},
+//	{LUA_LOADLIBNAME, luaopen_package},
 	{LUA_COLIBNAME,   luaopen_coroutine},
 	{LUA_TABLIBNAME,  luaopen_table},
-	{LUA_IOLIBNAME,   luaopen_io},
-//	{LUA_OSLIBNAME,   luaopen_os},
 	{LUA_STRLIBNAME,  luaopen_string},
 	{LUA_MATHLIBNAME, luaopen_math},
 	{LUA_UTF8LIBNAME, luaopen_utf8},
 	{LUA_DBLIBNAME,   luaopen_debug},
-#if defined(LUA_COMPAT_BITLIB)
-	{LUA_BITLIBNAME,  luaopen_bit32},
-#endif
+// #if defined(LUA_COMPAT_BITLIB)
+// 	{LUA_BITLIBNAME,  luaopen_bit32},
+// #endif
 	{NULL, NULL}
 };
+
 
 
 int zen_load_string(lua_State *L, const char *code,
@@ -78,7 +81,7 @@ int zen_load_string(lua_State *L, const char *code,
 #ifdef LUA_COMPILED
 	res = luaL_loadbufferx(L,code,size,name,"b");
 #else
-	res = luaL_loadbuffer(L,code,size,name);
+	res = luaL_loadbufferx(L,code,size,name,NULL);
 #endif
 	switch (res) {
 	case LUA_OK: { // func(L, "%s OK %s",__func__,name);
@@ -169,8 +172,6 @@ int zen_require(lua_State *L) {
 		luaL_requiref(L, s, luaopen_big, 1); }
 	else if(strcasecmp(s, "fp12")  ==0) {
 		luaL_requiref(L, s, luaopen_fp12, 1); }
-	else if(strcasecmp(s, "rng")  ==0) {
-		luaL_requiref(L, s, luaopen_rng, 1); }
 	else if(strcasecmp(s, "hash")  ==0) {
 		luaL_requiref(L, s, luaopen_hash, 1); }
 	else if(strcasecmp(s, "benchmark")  ==0) {
@@ -214,6 +215,8 @@ int zen_lua_init(lua_State *L) {
 		if (strcasecmp(p->name, "init") == 0)
 			return zen_exec_extension(L,p);
 	}
+	lua_gc(L, LUA_GCCOLLECT, 0);
+	lua_gc(L, LUA_GCCOLLECT, 0);
 	lerror(L,"Error loading lua init script");
 	return 0;
 }

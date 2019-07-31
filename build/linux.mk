@@ -28,12 +28,20 @@ android-arm android-x86: apply-patches lua53 milagro embed-lua
 	LD="${ld}" RANLIB="${ranlib}" AR="${ar}" \
 		make -C src $@
 
+cortex-arm: ldflags += -Wl,-Map=./zenroom.map
 cortex-arm:	apply-patches cortex-lua53 milagro embed-lua
 	CC=${gcc} AR="${ar}" OBJCOPY="${objcopy}" CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \
 	make -C src cortex-arm
 
-linux-debug: cflags := -O1 -ggdb ${cflags_protection} -DDEBUG=1 -Wstack-usage=4096
+linux-debug: cflags += -O1 -ggdb ${cflags_protection} -DDEBUG=1 -Wstack-usage=4096
 linux-debug: linux
+
+linux-c++: linux
+
+linux-jemalloc: linux
+
+linux-debug-jemalloc: cflags += -O1 -ggdb ${cflags_protection} -DDEBUG=1 -Wstack-usage=4096
+linux-debug-jemalloc: linux
 
 linux-clang: gcc := clang
 linux-clang: linux
@@ -51,6 +59,17 @@ linux-lib: cflags += -shared -DLIBRARY
 linux-lib: apply-patches lua53 milagro embed-lua
 	CC=${gcc} CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \
 		make -C src linux-lib
+
+linux-lib-debug: cflags += -shared -DLIBRARY
+linux-lib-debug: apply-patches lua53 milagro embed-lua
+	CC=${gcc} CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \
+	make -C src linux-lib
+
+
+linux-redis: cflags += -shared -DLIBRARY
+linux-redis: apply-patches lua53 milagro embed-lua
+	CC=${gcc} CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \
+		make -C src redis
 
 linux-python3: apply-patches lua53 milagro embed-lua
 	swig -python -py3 ${pwd}/build/swig.i

@@ -42,7 +42,7 @@
 //  @module ECDH
 //  @author Denis "Jaromil" Roio, Enrico Zimuel
 //  @license GPLv3
-//  @copyright Dyne.org foundation 2017-2018
+//  @copyright Dyne.org foundation 2017-2019
 
 
 #include <lua.h>
@@ -68,6 +68,10 @@
 // from zen_ecdh_factory.h to setup function pointers
 extern ecdh *ecdh_new_curve(lua_State *L, const char *curve);
 
+
+extern zenroom_t *Z; // accessed to check random_seed configuration
+
+
 /// Global ECDH functions
 // @section ECDH.globals
 
@@ -78,8 +82,10 @@ extern ecdh *ecdh_new_curve(lua_State *L, const char *curve);
 
     Supported curves: BLS383, ED25519, GOLDILOCKS, SECP256K1
 
-    Please note curve selection is only supported in ECDH, while only
-    BLS383 is supported for @{ECP}/@{ECP2} arithmetics.
+    Please note curve selection is only supported in ECDH. The curve
+    BLS383 is the only one supported for @{ECP}/@{ECP2} arithmetics:
+    it is the default to grant compatibility between ECDH.public() and
+    @{ECP} points.
 
     @param curve[opt=BLS383] elliptic curve to be used
     @return a new ECDH keyring
@@ -105,18 +111,6 @@ ecdh* ecdh_new(lua_State *L, const char *curve) {
 	// TODO: make it a newuserdata object in LUA space so that
 	// it can be cleanly collected by the GC as well it can be
 	// saved transparently in the global state
-	e->rng = zen_memory_alloc(sizeof(csprng));
-	char *tmp = zen_memory_alloc(256);
-	randombytes(tmp,252);
-	// using time() from milagro
-	unsign32 ttmp = GET_TIME();
-	tmp[252] = (ttmp >> 24) & 0xff;
-	tmp[253] = (ttmp >> 16) & 0xff;
-	tmp[254] = (ttmp >>  8) & 0xff;
-	tmp[255] =  ttmp & 0xff;
-	RAND_seed(e->rng,256,tmp);
-	zen_memory_free(tmp);
-
 	luaL_getmetatable(L, "zenroom.ecdh");
 	lua_setmetatable(L, -2);
 	return(e);
@@ -131,7 +125,6 @@ int ecdh_destroy(lua_State *L) {
 	HERE();
 	ecdh *e = ecdh_arg(L,1);
 	SAFE(e);
-	if(e->rng) zen_memory_free(e->rng);
 	// FREE(r->pubkey);
 	// FREE(r->privkey);
 	return 0;
@@ -153,7 +146,7 @@ static int ecdh_new_keygen(lua_State *L) {
 	ecdh *e = ecdh_new(L, curve); SAFE(e);
 	e->pubkey = o_new(L,e->publen +0x0f); SAFE(e->pubkey);
 	e->seckey = o_new(L,e->seclen +0x0f); SAFE(e->seckey);
-	(*e->ECP__KEY_PAIR_GENERATE)(e->rng,e->seckey,e->pubkey);
+	(*e->ECP__KEY_PAIR_GENERATE)(Z->random_generator,e->seckey,e->pubkey);
 	HEREecdh(e);
 	lua_pop(L, 1);
 	lua_pop(L, 1);
@@ -185,7 +178,7 @@ static int ecdh_keygen(lua_State *L) {
 		ERROR(); KEYPROT(e->curve,"public key"); }
 	octet *pk = o_new(L,e->publen +0x0f); SAFE(pk);
 	octet *sk = o_new(L,e->seclen +0x0f); SAFE(sk);
-	(*e->ECP__KEY_PAIR_GENERATE)(e->rng,sk,pk);
+	(*e->ECP__KEY_PAIR_GENERATE)(Z->random_generator,sk,pk);
 	e->pubkey = pk;
 	e->seckey = sk;
 	HEREecdh(e);
@@ -222,37 +215,37 @@ static int ecdh_checkpub(lua_State *L) {
 
 /**
    Generate a Diffie-Hellman shared session key. This function uses
-   two keyrings to calculate a shared key, then process it through
-   KDF2 to make it ready for use in @{keyring:aead_encrypt}. This is
-   compliant with the IEEE-1363 Diffie-Hellman shared secret
-   specification for asymmetric key encryption.
+   two keyrings to calculate a shared key, then process it internally
+   through @{keyring:kdf2} to make it ready for use in
+   @{keyring:aead_encrypt}. This is compliant with the IEEE-1363
+   Diffie-Hellman shared secret specification for asymmetric key
+   encryption.
 
    @param keyring containing the public key to be used
    @function keyring:session(keyring)
    @treturn[1] octet KDF2 hashed session key ready for @{keyring:aead_encrypt}
-   @treturn[1] octet a @{BIG} number result of (private * public) % curve_order
+   @treturn[1] octet a @{BIG} number result of (private * public) % curve_order (before KDF2)
    @see keyring:aead_encrypt
 */
 static int ecdh_session(lua_State *L) {
 	HERE();
-	octet *pubkey, *seckey;
 	ecdh *e = ecdh_arg(L,1); SAFE(e);
-	pubkey = o_arg(L,2); SAFE(pubkey);
-	void *u = luaL_testudata(L, 3, "zenroom.big");
-	if(u) {
-		seckey = o_arg(L,3); SAFE(seckey);
-	} else {
-		SAFE(e->seckey);
-		seckey = e->seckey;
-	}
+	if(!e->seckey) {
+		lerror(L,"%s: secret key not found in 1st argument");
+		return 0; }
+	ecdh *p = ecdh_arg(L,2); SAFE(p);
+	if(!p->pubkey) {
+		lerror(L,"%s: public key not found in 2nd argument");
+		return 0; }
 	int res;
-	res = (*e->ECP__PUBLIC_KEY_VALIDATE)(pubkey);
+	res = (*e->ECP__PUBLIC_KEY_VALIDATE)(p->pubkey);
 	if(res<0) {
-		lerror(L, "%s: argument found, but is an invalid key",__func__);
+		lerror(L, "%s: public key found invalid in 2nd argument",
+		       __func__);
 		return 0; }
 	octet *kdf = o_new(L,e->hash); SAFE(kdf);
 	octet *ses = o_new(L,e->keysize); SAFE(ses);
-	(*e->ECP__SVDP_DH)(seckey,pubkey,ses);
+	(*e->ECP__SVDP_DH)(e->seckey,p->pubkey,ses);
 	// process via KDF2
 	// https://github.com/milagro-crypto/milagro-crypto-c/issues/285	
 	// here the NULL could be a salt (TODO: global?)
@@ -263,11 +256,12 @@ static int ecdh_session(lua_State *L) {
 }
 
 /**
-   Imports or exports the public key from an ECDH keyring. This method
-   functions in two ways: without argument it returns the public key
-   of a keyring, or if an octet argument is provided it imports it as
-   public key inside the keyring, but it refuses to overwrite and
-   returns an error if a public key is already present.
+   Imports or exports the public key from an ECDH keyring. This is a
+   get/set method working both ways: without argument it returns the
+   public key of a keyring, or if an octet argument is provided it
+   imports it as public key inside the keyring if its a valid @{ECP}.
+   If the keyring has a public key already, it will refuse to
+   overwrite it and return an error.
 
    @param key[opt] octet of a public key to be imported
    @function keyring:public(key)
@@ -278,15 +272,8 @@ static int ecdh_public(lua_State *L) {
 	ecdh *e = ecdh_arg(L, 1);	SAFE(e);
 	if(lua_isnoneornil(L, 2)) {
 		if(!e->pubkey) {
-			ERROR();
-			return lerror(L, "Public key is not found in keyring.");
-		}
-		// export public key to octet
-		res = (e->ECP__PUBLIC_KEY_VALIDATE)(e->pubkey);
-		if(res<0) {
-			ERROR();
-			return lerror(L, "Public key found, but invalid."); }
-		// succesfully return public key stored in keyring
+			lua_pushnil(L);
+			return 1; }
 		o_dup(L,e->pubkey);
 		return 1;
 	}
@@ -295,24 +282,49 @@ static int ecdh_public(lua_State *L) {
 		ERROR();
 		KEYPROT(e->curve, "public key"); }
 	octet *o = o_arg(L, 2); SAFE(o);
-	res = (*e->ECP__PUBLIC_KEY_VALIDATE)(o);
+	func(L, "%s: valid key",__func__);
+	e->pubkey = o_new(L, o->len+2); // max is len+1
+	OCT_copy(e->pubkey, o);
+	res = (*e->ECP__PUBLIC_KEY_VALIDATE)(e->pubkey);
 	if(res<0) {
 		ERROR();
 		return lerror(L, "Public key argument is invalid."); }
-	func(L, "%s: valid key",__func__);
-	// succesfully set the new public key
-	e->pubkey = o;
+
 	return 0;
 }
 
+// TODO: manage to export the ECDH public key in ECP format
+static int ecdh_ecp(lua_State *L) {
+	HERE();
+	int res;
+	ecdh *e = ecdh_arg(L, 1);	SAFE(e);
+	if(!e->pubkey) {
+		ERROR();
+		return lerror(L, "Public key is not found in keyring.");
+	}
+	res = (e->ECP__PUBLIC_KEY_VALIDATE)(e->pubkey);
+	if(res<0) {
+		ERROR();
+		return lerror(L, "Public key found, but invalid."); }
+	// Export public key to octet.  This is like o_dup but skips
+	// first byte since that is used internally by Milagro as a
+	// prefix for Montgomery (2) or non-Montgomery curves (4)
+	int i;
+	octet *n = o_new(L, e->publen);
+	OCT_clear(n); n->len = e->pubkey->len-1;
+	if(n->len>n->max) n->len = n->max;
+	for(i=0; i<n->len; i++)
+		n->val[i] = e->pubkey->val[i+1];
+	return 1;
+}
 
 /**
-   Imports or exports the private key from an ECDH keyring. This method
-   functions in two ways: without argument it returns the private key
-   of a keyring, or if an octet argument is provided it imports it as
-   private  key inside the keyring and generates a public key for it. If
-   a private key is already present in the keyring it refuses to
-   overwrite and returns an error.
+   Imports or exports the private key from an ECDH keyring. This is a
+   get/set method working both ways: without argument it returns the
+   private key of a keyring, or if an @{octet} argument is provided it
+   imports it as private key inside the keyring and generates a public
+   key for it. If the keyring contains already any key, it will refuse
+   to overwrite them and return an error.
 
    @param key[opt] octet of a private key to be imported
    @function keyring:private(key)
@@ -323,8 +335,8 @@ static int ecdh_private(lua_State *L) {
 	if(lua_isnoneornil(L, 2)) {
 		// no argument: return stored key
 		if(!e->seckey) {
-			ERROR();
-			return lerror(L, "Private key is not found in keyring."); }
+			lua_pushnil(L);
+			return 1; }
 		// export public key to octet
 		o_dup(L, e->seckey);
 		return 1;
@@ -332,15 +344,10 @@ static int ecdh_private(lua_State *L) {
 	if(e->seckey!=NULL) {
 		ERROR(); KEYPROT(e->curve, "private key"); }
 	e->seckey = o_arg(L, 2); SAFE(e->seckey);
-
 	octet *pk = o_new(L,e->publen); SAFE(pk);
 	(*e->ECP__KEY_PAIR_GENERATE)(NULL,e->seckey,pk);
-	int res;
-	res = (*e->ECP__PUBLIC_KEY_VALIDATE)(pk);
-	if(res<0) {
-		ERROR();
-		return lerror(L, "Invalid public key generation."); }
 	e->pubkey = pk;
+	HEREecdh(e);
 	return 1;
 }
 
@@ -352,27 +359,30 @@ static int ecdh_private(lua_State *L) {
 
    @param message string or @{OCTET} message to sign
    @function keyring:sign(message)
-   @treturn[1] octet containing the first signature parameter (r)
-   @treturn[1] octet containing the second signature parameter (s)
+   @return table containing signature parameters octets (r,s)
    @usage
    ecdh = ECDH.keygen() -- generate keys or import them
    m = "Message to be signed"
-   r,s = ecdh:sign(m)
-   assert( ecdh:verify(m,r,s) )
+   signature = ecdh:sign(m)
+   assert( ecdh:verify(m,signature) )
 */
 
 static int ecdh_dsa_sign(lua_State *L) {
 	HERE();
 	ecdh *e = ecdh_arg(L,1); SAFE(e);
 	octet *f = o_arg(L,2); SAFE(f);
-	octet *c = o_new(L,64); SAFE(c);
-	octet *d = o_new(L,64); SAFE(d);
-	// IEEE ECDSA Signature, C and D are signature on F using private key S
+	// return a table
+	lua_createtable(L, 0, 2);
+	octet *r = o_new(L,64); SAFE(r);
+	lua_setfield(L, -2, "r");
+	octet *s = o_new(L,64); SAFE(s);
+	lua_setfield(L, -2, "s");
+	// IEEE ECDSA Signature, R and S are signature on F using private key S
 	// either pass an RNG or K already randomised
 	// for K's generation see also RFC6979
 	// ECP_BLS383_SP_DSA(int sha,csprng *RNG,octet *K,octet *S,octet *F,octet *C,octet *D)
-	(*e->ECP__SP_DSA)(     64,     e->rng,     NULL, e->seckey,    f,      c,      d );
-	return 2;
+	(*e->ECP__SP_DSA)(     64,     Z->random_generator,     NULL, e->seckey,    f,      r,      s );
+	return 1;
 }
 
 
@@ -383,9 +393,8 @@ static int ecdh_dsa_sign(lua_State *L) {
    returned as 'r' and 's' in this same order by @{keyring:sign}.
 
    @param message the message whose signature has to be verified
-   @param r the first signature parameter
-   @param s the second signature paramter
-   @function keyring:verify(message,r,s)
+   @param signature the signature table returned by @{keyring:sign}
+   @function keyring:verify(message,signature)
    @return true if the signature is OK, or false if not.
    @see keyring:sign
 */
@@ -395,9 +404,13 @@ static int ecdh_dsa_verify(lua_State *L) {
     // IEEE1363 ECDSA Signature Verification. Signature C and D on F
     // is verified using public key W
 	octet *f = o_arg(L,2); SAFE(f);
-	octet *c = o_arg(L,3); SAFE(c);
-	octet *d = o_arg(L,4); SAFE(d);
-	int res = (*e->ECP__VP_DSA)(64, e->pubkey, f, c, d);
+	// take a table as argument, gather r and s from its keys
+	if(lua_type(L, 3) != LUA_TTABLE) {
+		ERROR(); lerror(L,"signature argument invalid: not a table"); }
+	lua_getfield(L, 3, "r"); lua_getfield(L, 3, "s"); // -2 stack
+	octet *r = o_arg(L,-2); SAFE(r);
+	octet *s = o_arg(L,-1); SAFE(s);
+	int res = (*e->ECP__VP_DSA)(64, e->pubkey, f, r, s);
 	if(res <0) // ECDH_INVALID in milagro/include/ecdh.h.in (!?!)
 		// TODO: maybe suggest fixing since there seems to be
 		// no criteria between ERROR (used in the first check
@@ -428,9 +441,11 @@ static int ecdh_dsa_verify(lua_State *L) {
 static int ecdh_aead_encrypt(lua_State *L) {
 	HERE();
 	octet *k =  o_arg(L, 1); SAFE(k);
-	// check if key is a power of two byte length and not bigger than 64 bytes
-	if(!(k->len && !(k->len & (k->len - 1))) || k->len > 64) {
-		error(L,"ECDH.aead_encrypt accepts only keys of ^2 length (16,32,64), octet is %u", k->len);
+	// check if key is a power of two byte length, as well not bigger
+	// than 64 bytes and not smaller than 16 bytes
+	if(!(k->len && !(k->len & (k->len - 1))) ||
+	   (k->len > 64 && k->len < 16) ) {
+		error(L,"ECDH.aead_encrypt accepts only keys of ^2 length (16,32,64), this is %u", k->len);
 		lerror(L,"ECDH encryption aborted");
 		return 0; }
 	octet *in = o_arg(L, 2); SAFE(in);
@@ -460,6 +475,11 @@ static int ecdh_aead_encrypt(lua_State *L) {
 static int ecdh_aead_decrypt(lua_State *L) {
 	HERE();
 	octet *k = o_arg(L, 1); SAFE(k);
+	if(!(k->len && !(k->len & (k->len - 1))) ||
+	   (k->len > 64 && k->len < 16) ) {
+		error(L,"ECDH.aead_decrypt accepts only keys of ^2 length (16,32,64), this is %u", k->len);
+		lerror(L,"ECDH decryption aborted");
+		return 0; }
 	octet *in = o_arg(L, 2); SAFE(in);
 	octet *iv = o_arg(L, 3); SAFE(iv);
 	octet *h = o_arg(L, 4); SAFE(h);
@@ -607,7 +627,8 @@ static int ecdh_pbkdf2(lua_State *L) {
 	{"pbkdf2", ecdh_pbkdf2}, \
 	{"pbkdf", ecdh_pbkdf2}, \
 	{"sign", ecdh_dsa_sign}, \
-	{"verify", ecdh_dsa_verify}
+	{"verify", ecdh_dsa_verify}, \
+	{"ecp", ecdh_ecp}
 
 
 

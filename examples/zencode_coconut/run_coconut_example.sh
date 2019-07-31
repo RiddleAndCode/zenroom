@@ -6,7 +6,6 @@ verbose=1
 
 alias zenroom='../../src/zenroom-shared'
 
-
 scenario="Generate credential issuer keypair"
 echo $scenario
 cat <<EOF | zenroom | tee madhatter.keys
@@ -15,7 +14,7 @@ ZEN:parse([[
 Scenario 'coconut': $scenario
 Given that I am known as 'MadHatter'
 When I create my new issuer keypair
-Then print all data
+Then print my data
 ]])
 ZEN:run()
 EOF
@@ -28,9 +27,8 @@ ZEN:begin($verbose)
 ZEN:parse([[
 Scenario 'coconut': $scenario
 Given that I am known as 'MadHatter'
-and I have my issuer keypair
-When I publish my issuer verification key
-Then print all data
+and I have my valid 'ca_verify'
+Then print my data
 ]])
 ZEN:run()
 EOF
@@ -43,7 +41,7 @@ ZEN:parse([[
 Scenario 'coconut': $scenario
 		 Given that I am known as 'Alice'
 		 When I create my new keypair
-		 Then print all data
+		 Then print my data
 ]])
 ZEN:run()
 EOF
@@ -56,7 +54,7 @@ ZEN:parse([[
 Scenario 'coconut': $scenario
 		 Given that I am known as 'Strawman'
 		 When I create my new keypair
-		 Then print all data
+		 Then print my data
 ]])
 ZEN:run()
 EOF
@@ -69,7 +67,7 @@ ZEN:parse([[
 Scenario 'coconut': $scenario
 		 Given that I am known as 'Lionheart'
 		 When I create my new keypair
-		 Then print all data
+		 Then print my data
 ]])
 ZEN:run()
 EOF
@@ -84,26 +82,26 @@ cat <<EOF | zenroom -k alice.keys | tee alice_blindsign_request.json
 ZEN:begin($verbose)
 ZEN:parse([[
 Scenario 'coconut': $scenario
-Given that I am known as 'Alice'
-and I have my credential keypair
-When I request a blind signature of my keypair
-Then print all data
+		 Given that I am known as 'Alice'
+		 and I have my valid 'credential_keypair'
+		 When I generate a credential signature request
+		 Then print the 'credential_signature_request'
 ]])
 ZEN:run()
 EOF
 
 scenario="Issuer signs a credential"
 echo $scenario
-cat <<EOF | zenroom -k madhatter.keys -a alice_blindsign_request.json | tee madhatter_signed_credential.json |json_pp
+cat <<EOF | zenroom -k madhatter.keys -a alice_blindsign_request.json | tee madhatter_signed_credential.json | json_pp
 ZEN:begin($verbose)
 ZEN:parse([[
 Scenario 'coconut': $scenario
 		 Given that I am known as 'MadHatter'
-		 and I have my issuer keypair
-		 When I am requested to sign a credential
-		 and I verify the credential to be true
-		 and I sign the credential
-		 Then print all data
+		 and I have my valid 'ca_keypair'
+		 and I have a valid 'credential_signature_request'
+		 When I sign the credential
+		 Then print my 'credential_signature'
+		 and print my 'ca_verify'
 ]])
 ZEN:run()
 EOF
@@ -111,20 +109,20 @@ EOF
 # Dev note: this generates sigma (AggCred(σ1, . . . , σt) → (σ):) 
 scenario="Receive the signature and archive the credential"
 echo $scenario
-cat <<EOF | zenroom -k alice.keys -a madhatter_signed_credential.json | tee /tmp/alice.keys |json_pp
+cat <<EOF | zenroom -k alice.keys -a madhatter_signed_credential.json | tee /tmp/alice.keys
 ZEN:begin($verbose)
 ZEN:parse([[
 Scenario 'coconut': $scenario
 		 Given that I am known as 'Alice'
-		 and I have my credential keypair
-		 When I receive a credential signature 'MadHatter'
-		 and I aggregate the credential into my keyring
-		 Then print all data
+		 and I have my valid 'credential_keypair'
+		 and I have inside 'MadHatter' a valid 'credential_signature'
+		 When I aggregate the credential in 'credentials'
+		 Then print my 'credential_keypair'
+		 and print my 'credentials'
 ]])
 ZEN:run()
 EOF
 mv /tmp/alice.keys . # restore to avoid overwrite 
-
 
 scenario="Request a credential blind signature"
 echo $scenario
@@ -133,9 +131,9 @@ ZEN:begin($verbose)
 ZEN:parse([[
 Scenario 'coconut': $scenario
 		 Given that I am known as 'Strawman'
-		 and I have my credential keypair
-		 When I request a blind signature of my keypair
-		 Then print all data
+		 and I have my valid 'credential_keypair'
+		 When I generate a credential signature request
+		 Then print the 'credential_signature_request'
 ]])
 ZEN:run()
 EOF
@@ -147,11 +145,12 @@ ZEN:begin($verbose)
 ZEN:parse([[
 Scenario 'coconut': $scenario
 		 Given that I am known as 'MadHatter'
-		 and I have my issuer keypair
-		 When I am requested to sign a credential
-		 and I verify the credential to be true
-		 and I sign the credential
-		 Then print all data
+		 and I have my valid 'ca_keypair'
+		 and I have a valid 'credential_signature_request'
+		 When I sign the credential
+		 Then print my 'credential_signature'
+		 and print my 'ca_verify'
+
 ]])
 ZEN:run()
 EOF
@@ -164,16 +163,15 @@ ZEN:begin($verbose)
 ZEN:parse([[
 Scenario 'coconut': $scenario
 		 Given that I am known as 'Strawman'
-		 and I have my credential keypair
-		 When I receive a credential signature 'MadHatter'
-		 and I aggregate the credential into my keyring
-		 Then print all data
+		 and I have my valid 'credential_keypair'
+		 and I have inside 'MadHatter' a valid 'credential_signature'
+		 When I aggregate the credential in 'credentials'
+		 Then print my 'credential_keypair'
+		 and print my 'credentials'
 ]])
 ZEN:run()
 EOF
 mv /tmp/strawman.keys . # restore to avoid overwrite 
-
-
 
 scenario="Request a credential blind signature"
 echo $scenario
@@ -182,9 +180,9 @@ ZEN:begin($verbose)
 ZEN:parse([[
 Scenario 'coconut': $scenario
 		 Given that I am known as 'Lionheart'
-		 and I have my credential keypair
-		 When I request a blind signature of my keypair
-		 Then print all data
+		 and I have my valid 'credential_keypair'
+		 When I generate a credential signature request
+		 Then print the 'credential_signature_request'
 ]])
 ZEN:run()
 EOF
@@ -196,11 +194,11 @@ ZEN:begin($verbose)
 ZEN:parse([[
 Scenario 'coconut': $scenario
 		 Given that I am known as 'MadHatter'
-		 and I have my issuer keypair
-		 When I am requested to sign a credential
-		 and I verify the credential to be true
-		 and I sign the credential
-		 Then print all data
+		 and I have my valid 'ca_keypair'
+		 and I have a valid 'credential_signature_request'
+		 When I sign the credential
+		 Then print my 'credential_signature'
+		 and print my 'ca_verify'
 ]])
 ZEN:run()
 EOF
@@ -213,10 +211,11 @@ ZEN:begin($verbose)
 ZEN:parse([[
 Scenario 'coconut': $scenario
 		 Given that I am known as 'Lionheart'
-		 and I have my credential keypair
-		 When I receive a credential signature 'MadHatter'
-		 and I aggregate the credential into my keyring
-		 Then print all data
+		 and I have my valid 'credential_keypair'
+		 and I have inside 'MadHatter' a valid 'credential_signature'
+		 When I aggregate the credential in 'credentials'
+		 Then print my 'credential_keypair'
+		 and print my 'credentials'
 ]])
 ZEN:run()
 EOF
@@ -227,17 +226,17 @@ mv /tmp/lionheart.keys . # restore to avoid overwrite
 # Dev note: this generates theta (❖ ProveCred(vk, m, φ0) → (Θ, φ0):
 scenario="Generate a blind proof of the credentials"
 echo $scenario
-cat <<EOF | zenroom -k alice.keys -a madhatter_verification.keys | tee alice_proof.json | json_pp
+cat <<EOF | zenroom -k alice.keys -a madhatter_verification.keys | tee alice_proof.json
 ZEN:begin($verbose)
 ZEN:parse([[
 Scenario 'coconut': $scenario
 		 Given that I am known as 'Alice'
-		 and I have my credential keypair
-		 and I use the verification key by 'MadHatter'
-		 and I have a signed credential
-		 When I aggregate all the verification keys
+		 and I have my valid 'credential_keypair'
+		 and I have my valid 'credentials'
+		 and I have inside 'MadHatter' a valid 'ca_verify'
+		 When I aggregate verifiers from 'ca_verify'
 		 and I generate a credential proof
-		 Then print all data
+		 Then print the 'credential_proof'
 ]])
 ZEN:run()
 EOF
@@ -249,11 +248,11 @@ cat <<EOF | zenroom -k alice_proof.json -a madhatter_verification.keys
 ZEN:begin($verbose)
 ZEN:parse([[
 Scenario 'coconut': $scenario
-		 Given that I use the verification key by 'MadHatter'
-		 and that I have a valid credential proof
-		 When I aggregate all the verification keys
-		 and the credential proof is verified correctly
-		 Then print string 'OK'
+		 Given I have a valid 'credential_proof'
+		 and I have inside 'MadHatter' a valid 'ca_verify'
+		 When I aggregate verifiers from 'ca_verify'
+		 and I verify the credential proof is correct		 
+		 Then print 'result' 'OK'
 ]])
 ZEN:run()
 EOF

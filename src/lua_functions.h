@@ -31,7 +31,5 @@ void zen_add_function(lua_State *L,
                       lua_CFunction func,
                       const char *func_name);
 void zen_add_class(lua_State *L, char *name,
-                   const luaL_Reg *class, const luaL_Reg *methods);
-
-char *str_arg(lua_State *L, int idx);
+                   const luaL_Reg *_class, const luaL_Reg *methods);
 

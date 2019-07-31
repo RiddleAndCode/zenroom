@@ -35,7 +35,6 @@
 #include <zen_memory.h>
 #include <zen_big.h>
 #include <zen_ecp_bls383.h> // TODO: abstract to support multiple curves
-#include <zen_random.h>
 
 /// <h1>Big Number Arithmetic (BIG)</h1>
 //
@@ -47,6 +46,8 @@
 //  @author Denis "Jaromil" Roio
 //  @license GPLv3
 //  @copyright Dyne.org foundation 2017-2018
+
+extern zenroom_t *Z;
 
 extern int octet_to_hex(lua_State *L);
 
@@ -97,11 +98,13 @@ int _octet_to_big(lua_State *L, big *dst, octet *src) {
 			BIG_dshl(dst->dval,8);
 			dst->dval[0] += (int)(unsigned char) src->val[i];
 		}
+//		dst->dval[0] += (int)(unsigned char) src->val[i];
 	} else {
 		lerror(L,"Cannot import BIG number");
 		return(0);
 	}
-	dst->len = i;
+	// set to curve's MODLEN by d/big_init()
+	// dst->len = i;
 	return(i);
 }
 
@@ -255,23 +258,25 @@ static int lua_biginfo(lua_State *L) {
     @return a new Big number
     @function BIG.new(octet)
 */
+extern void rng_round(csprng *rng);
 static int newbig(lua_State *L) {
 	HERE();
 	void *ud;
-	ud = luaL_testudata(L, 1, "zenroom.rng");
+	// kept for backward compat with zenroom 0.9
+	ud = luaL_testudata(L, 2, "zenroom.big");
 	if(ud) {
-		RNG *rng = (RNG*)ud; SAFE(rng);
+		HEREs("use of RNG deprecated");
 		big *res = big_new(L); big_init(res); SAFE(res);
-		ud = luaL_testudata(L, 2, "zenroom.big");
-		if(ud) { // random with modulus
-			big *modulus = (big*)ud; SAFE(modulus);
-			BIG_randomnum(res->val,modulus->val,rng);
-			return 1;
-		} else { // random without modulus
-			BIG_random(res->val, rng);
-			return 1;
-		}
+		// random with modulus
+		big *modulus = (big*)ud; SAFE(modulus);
+		BIG_randomnum(res->val,modulus->val,Z->random_generator);
+		return 1;
 	}
+
+	// TODO number argument, modulus
+	// int tn;
+	// lua_Number n = lua_tonumberx(L,2,&tn);
+	// if(tn) {
 
 	// number argument, import
 	int tn;
@@ -290,6 +295,9 @@ static int newbig(lua_State *L) {
 	_octet_to_big(L, c,o);
 	return 1;
 }
+
+// TODO: simple random() method using BIG_random()
+//       and randmodulo using BIG_randomnum
 
 octet *new_octet_from_big(lua_State *L, big *c) {
 	int i;
@@ -319,7 +327,7 @@ octet *new_octet_from_big(lua_State *L, big *c) {
 	}
 	// remove leading zeroes from octet
 	if(o->val[0]==0x0) {
-		func(L,"LEADING ZEROES");
+		// func(L,"LEADING ZEROES");
 		int p;
 		for(p = 0; p < o->len && o->val[p] == 0x0; p++);
 		for(i=0; i < o->len-p; i++) o->val[i] = o->val[i+p];
@@ -481,6 +489,13 @@ static int big_modsub(lua_State *L) {
 		}
 	}
 	return 1;
+}
+
+static int big_modrand(lua_State *L) {
+	big *modulus = big_arg(L,1); SAFE(modulus);	
+	big *res = big_new(L); big_init(res); SAFE(res);
+	BIG_randomnum(res->val,modulus->val,Z->random_generator);
+	return(1);
 }
 
 static int big_mul(lua_State *L) {
@@ -667,6 +682,7 @@ int luaopen_big(lua_State *L) {
 		{"modsqr",big_modsqr},
 		{"modneg",big_modneg},
 		{"modsub",big_modsub},
+		{"modrand",big_modrand},
 		{"modinv",big_modinv},
 		{"jacobi",big_jacobi},
 		{"monty",big_monty},

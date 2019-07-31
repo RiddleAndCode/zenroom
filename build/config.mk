@@ -36,6 +36,9 @@ ldadd += ${milib}/libamcl_core.a
 
 # ------------------------
 # target specific settings
+ifneq (,$(findstring debug,$(MAKECMDGOALS)))
+cflags += -O1 -ggdb ${cflags_protection} -DDEBUG=1 -Wstack-usage=4096
+endif
 
 ifneq (,$(findstring win,$(MAKECMDGOALS)))
 gcc := x86_64-w64-mingw32-gcc
@@ -68,14 +71,23 @@ ld := arm-none-eabi-ld
 system := Generic
 ldadd += -lm
 cflags_protection := ""
-cflags := ${cflags_protection} -DARCH_CORTEX -O3 -Wall -Wextra -pedantic -std=gnu99 -mcpu=cortex-m4 -mthumb -mlittle-endian -mthumb-interwork -Wstack-usage=1024 -DLIBRARY -Os -Wno-main -ffreestanding -nostartfiles
+cflags := ${cflags_protection} -DARCH_CORTEX -Og -ggdb -Wall -Wextra -pedantic -std=gnu99 -mcpu=cortex-m4 -mthumb -mlittle-endian -mthumb-interwork -Wstack-usage=1024 -DLIBRARY -Wno-main -ffreestanding -nostartfiles
 milagro_cmake_flags += -DCMAKE_SYSTEM_PROCESSOR="arm" -DCMAKE_CROSSCOMPILING=1 -DCMAKE_C_COMPILER_WORKS=1
-ldflags+=-mcpu=cortex-m4 -mthumb -mlittle-endian -mthumb-interwork -Wstack-usage=1024 -ggdb -Wno-main -ffreestanding -T cortex_m.ld -nostartfiles -Wl,-gc-sections
+ldflags+=-mcpu=cortex-m4 -mthumb -mlittle-endian -mthumb-interwork -Wstack-usage=1024 -Wno-main -ffreestanding -T cortex_m.ld -nostartfiles -Wl,-gc-sections -ggdb
+endif
+
+ifneq (,$(findstring redis,$(MAKECMDGOALS)))
+cflags := ${cflags_protection} -DARCH_REDIS -Wall -std=gnu99
+cflags += -O1 -ggdb -DDEBUG=1
 endif
 
 ifneq (,$(findstring ios,$(MAKECMDGOALS)))
 milagro_cmake_flags += -DCMAKE_SYSTEM_PROCESSOR="arm" -DCMAKE_CROSSCOMPILING=1 -DCMAKE_C_COMPILER_WORKS=1
 milagro_cmake_flags += -DCMAKE_OSX_SYSROOT="/" -DCMAKE_OSX_DEPLOYMENT_TARGET=""
+endif
+
+ifneq (,$(findstring c++,$(MAKECMDGOALS)))
+gcc := g++
 endif
 
 ifneq (,$(findstring musl,$(MAKECMDGOALS)))
@@ -90,6 +102,12 @@ cflags := ${cflags} -fPIC ${cflags_protection} -D'ARCH=\"LINUX\"' -DARCH_LINUX
 ldflags := -lm -lpthread
 system := Linux
 endif
+
+ifneq (,$(findstring jemalloc,$(MAKECMDGOALS)))
+cflags += -DUSE_JEMALLOC
+ldflags += -ljemalloc
+endif
+
 
 #milagro_cmake_flags += -DCMAKE_SYSROOT=${sysroot} -DCMAKE_LINKER=${ld} -DCMAKE_C_LINK_EXECUTABLE="<CMAKE_LINKER> <FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> <LINK_LIBRARIES>"
 # -DCMAKE_ANDROID_NDK=${sysroot}
@@ -146,7 +164,7 @@ ar := ${EMSCRIPTEN}/emar
 ld := ${gcc}
 system:= Javascript
 # lua_embed_opts := "compile"
-ldflags := -s "EXPORTED_FUNCTIONS='[\"_zenroom_exec\",\"_zenroom_exec_tobuf\",\"_set_debug\"]'" -s "EXTRA_EXPORTED_RUNTIME_METHODS='[\"ccall\",\"cwrap\"]'" -s USE_SDL=0 -s USE_PTHREADS=0 -lm
+ldflags := -s "EXPORTED_FUNCTIONS='[\"_zenroom_exec\",\"_zenroom_exec_tobuf\",\"_zencode_exec\",\"_zencode_exec_tobuf\",\"_set_debug\"]'" -s "EXTRA_EXPORTED_RUNTIME_METHODS='[\"ccall\",\"cwrap\"]'" -s USE_SDL=0 -s USE_PTHREADS=0 -lm
 cflags := -O2 -Wall -I ${EMSCRIPTEN}/system/include/libc -DLIBRARY
 endif
 

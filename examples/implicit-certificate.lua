@@ -4,7 +4,7 @@
 -- specification SEC 4 v1.0 retrieved from www.secg.org
 
 -- setup
-random = RNG.new()
+ECP = require_once'zenroom_ecp'
 order = ECP.order()
 G = ECP.generator()
 
@@ -12,14 +12,14 @@ G = ECP.generator()
 -- take a random big integer modulo curve order
 -- and multiply it by the curve generator
 
-function keygen(rng,modulo)
-   local key = INT.new(rng,modulo)
+function keygen(modulo)
+   local key = INT.modrand(modulo)
    return { private = key,
    			public = key * G }
 end
 
 -- generate the certification request
-certreq = keygen(random,order)
+certreq = keygen(order)
 -- certreq.private is preserved in a safe place
 -- certreq.public is sent to the CA along with a declaration
 declaration = { requester = "Alice",
@@ -32,10 +32,10 @@ I.print(declaration)
 
 -- --> CA receives from Requester
 -- keypair for CA (known to everyone as the Mad Hatter)
-CA = keygen(random,order)
+CA = keygen(order)
 
 -- from here the CA has received the request
-certkey = keygen(random,order)
+certkey = keygen(order)
 -- certkey.private is sent to requester
 -- certkey.public is broadcasted
 

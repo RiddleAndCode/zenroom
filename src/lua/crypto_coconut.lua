@@ -22,6 +22,10 @@
 -- re-randomization, and multiple unlinkable selective attribute
 -- revelations. For information about usage see
 -- https://zenroom.dyne.org and https://decodeproject.eu
+ECP     = require_once('zenroom_ecp')
+ELGAMAL = require_once('crypto_elgamal')
+ECP2    = require_once('zenroom_ecp2')
+FP12    = require_once('fp12')
 
 
 local coco = {
@@ -54,8 +58,7 @@ end
 
 
 -- random generator init
-local random = RNG.new()
-local function rand() return INT.new(random,o) end
+local function rand() return INT.modrand(o) end
 
 -- local zero-knowledge proof verifications
 local function make_pi_s(gamma, cm, k, r, m)
@@ -100,8 +103,7 @@ function coco.ca_keygen()
    local vk = { alpha = g2 * x,
                 beta  = g2 * y  }
    -- return keypair
-   return { sign = sk,
-            verify = vk }
+   return sk, vk
 end
 
 function coco.aggregate_keys(keys)
@@ -114,9 +116,7 @@ function coco.aggregate_keys(keys)
 	  end
    end
    -- return aggkeys
-   return { schema = 'coconut_aggkeys',
-			version = coco._VERSION,
-			alpha = agg_alpha,
+   return { alpha = agg_alpha,
 			beta = agg_beta }
 end
 
@@ -196,6 +196,7 @@ end
 function coco.verify_creds(vk, Theta)
    ZEN.assert(vk, "COCONUT.verify_creds called with empty verifier")
    ZEN.assert(Theta, "COCONUT.verify_creds valled with empty proof")
+   if #vk == 1 then vk = vk[1] end -- single element in array
    -- verify pi_v
    local Aw = Theta.kappa * Theta.pi_v.c
 	  + g2 * Theta.pi_v.rr

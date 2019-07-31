@@ -235,7 +235,7 @@ static int unpack (lua_State *L) {
 /* type for array indices */
 typedef unsigned int IdxT;
 
-
+#define l_randomizePivot() 0xFFFFFFFF
 /*
 ** Produce a "random" 'unsigned int' to randomize pivot choice. This
 ** macro is used only when 'sort' detects a big imbalance in the result
@@ -248,7 +248,7 @@ typedef unsigned int IdxT;
 
 /* size of 'e' measured in number of 'unsigned int's */
 #define sof(e)		(sizeof(e) / sizeof(unsigned int))
-
+#error "non deterministic randomize pivot"
 /*
 ** Use 'time' and 'clock' as sources of "randomness". Because we don't
 ** know the types 'clock_t' and 'time_t', we cannot cast them to

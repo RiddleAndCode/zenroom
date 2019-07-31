@@ -7,13 +7,12 @@
 
 -- crypto setup
 -- TODO: review scoping, make local or into finite-state machine
-random = RNG.new()
 order = ECP.order()
 G = ECP.generator()
 KDF_rounds = 10000
 
 local ecdh_keygen = function()
-   local key = INT.new(random,order)
+   local key = INT.new(RNG.new(),order)
    return { private = key,
 			public = key * G }
 end
@@ -28,7 +27,7 @@ f_havekey = function (keytype, keyname)
 	  ACK[name] = { }
 	  ACK[name][keytype] = ZEN.get(ECP.new, keypair, keytype)
    else
-	  ACK[name] = import(keypair, "ecdh_keypair")
+	  ACK[name] = ZEN:valid("ecdh_keypair", keypair)
    end
 end
 
@@ -42,18 +41,6 @@ end
 
 When("I create a new keypair as ''", f_keygen)
 When("I create my new keypair", f_keygen)
-
--- f_keyrm = function (keytype)
---    ZEN.assert([keytype],
--- 			  "Keypair "..keypair.." does not contain element: ".. keytype)
---    if kp[keytype] then
--- 	  local out = {}
--- 	  L.map(kp,function(k,v)
--- 			   if k ~= keytype then
--- 				  out[k] = v end end)
--- 	  keyring[keypair] = out
---    end
--- end
 
 When("I remove the '' key", f_keyrm)
 

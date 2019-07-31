@@ -1,6 +1,6 @@
 /* This file is part of Zenroom (https://zenroom.dyne.org)
  *
- * Copyright (C) 2017-2019 Dyne.org foundation
+ * Copyright (C) 2019 Dyne.org foundation
  * designed, written and maintained by Denis Roio <jaromil@dyne.org>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -18,17 +18,16 @@
  *
  */
 
-#ifndef __ZEN_RANDOM_H__
-#define __ZEN_RANDOM_H__
+#ifndef __ENCODING_H__
+#define __ENCODING_H__
 
-#include <amcl.h>
+int is_url64(const char *in);
 
-// easier name (csprng comes from amcl.h in milagro)
-#define RNG csprng
+int B64decoded_len(int len);
+int U64decode(char *dest, const char *src);
 
-RNG* rng_new(lua_State *L);
-RNG* rng_arg(lua_State *L, int n);
-int  rng_oct(lua_State *L);
-int  rng_big(lua_State *L);
+int B64encoded_len(int len);
+void U64encode(char *dest, const char *src, int len);
+
 
 #endif

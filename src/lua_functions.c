@@ -102,24 +102,26 @@ void load_file(char *dst, FILE *fd) {
 		offset += bytes;
 	}
 	if(fd!=stdin) fclose(fd);
-	act(0, "loaded file (%u bytes)", offset);
+	if(get_debug())	act(0, "loaded file (%u bytes)", offset);
 }
 #endif
 
-static char *safe_string(char *str, int max) {
-	int i, length = 0;
-	if(!str) {
-		warning(0, "NULL string detected");
-		return NULL; }
-	if(str[0]=='\0') {
-		warning(0, "empty string detected");
-		return NULL; }
- 	return(str);
+int zen_unset(lua_State *L, char *key) {
+	lua_pushnil(L);
+	lua_setglobal(L, key);
+	return 0;
 }
 
-void zen_setenv(lua_State *L, char *key, char *val) {
-	lua_pushstring(L, safe_string(val, MAX_FILE) );
+int zen_setenv(lua_State *L, char *key, char *val) {
+	if(!val) {
+		warning(L, "setenv: NULL string detected");
+		return 1; }
+	if(val[0]=='\0') {
+		warning(L, "setenv: empty string detected");
+		return 1; }
+	lua_pushstring(L, val);
 	lua_setglobal(L, key);
+	return 0;
 }
 
 int zen_add_package(lua_State *L, char *name, lua_CFunction func) {
@@ -165,7 +167,7 @@ static const char *zen_lua_findtable (lua_State *L, int idx,
 }
 
 void zen_add_class(lua_State *L, char *name,
-                  const luaL_Reg *class, const luaL_Reg *methods) {
+                  const luaL_Reg *_class, const luaL_Reg *methods) {
 	char classmeta[512];
 	snprintf(classmeta,511,"zenroom.%s", name);
 	luaL_newmetatable(L, classmeta);
@@ -192,11 +194,5 @@ void zen_add_class(lua_State *L, char *name,
 	// in lua 5.1 was: luaL_pushmodule(L,name,1);
 
 	lua_insert(L,-1);
-	luaL_setfuncs(L,class,0);
-}
-
-char *str_arg(lua_State *L, int idx) {
-	char *s = lua_tostring(L, idx);
-	luaL_argcheck(L,s!=NULL,idx,"string expected");
-	return(s);
+	luaL_setfuncs(L,_class,0);
 }

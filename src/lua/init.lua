@@ -19,157 +19,25 @@
 -- init script embedded at compile time.  executed in
 -- zen_load_extensions(L) usually after zen_init()
 
--- override type to recognize zenroom's types
-luatype = type
-function type(var)
-   local simple = luatype(var)
-   if simple == "userdata" then
-	  if getmetatable(var).__name then
-		 return(getmetatable(var).__name)
-	  else
-		 return("unknown")
-	  end
-   else return(simple) end
-end
-function iszen(n)
-   for c in n:gmatch("zenroom") do
-	  return true
-   end
-   return false
-end
 
-JSON = require('zenroom_json')
-
-require('msgpack')
-MSG = msgpack
-msgpack = nil -- rename default global
-
-OCTET  = require('zenroom_octet')
-O = OCTET -- alias
-
+-- default encoding base64url (RFC4648)
+-- this is the fastest and most portable encoder in zenroom
+_G["ENCODING"] = url64
+-- ZEN = { assert = assert } -- zencode shim when not loaded
+require('zenroom_common')
 INSIDE = require('inspect')
-I = INSIDE -- alias
-SCHEMA = require('zenroom_schema')
-S = SCHEMA -- alias
-RNG    = require('zenroom_rng')
+OCTET  = require('zenroom_octet')
+JSON   = require('zenroom_json')
 ECDH   = require('zenroom_ecdh')
-LAMBDA = require('functional')
-L = LAMBDA -- alias
-FP12   = require('fp12')
 BIG    = require('zenroom_big')
-INT = BIG -- alias
 HASH   = require('zenroom_hash')
-ECP    = require('zenroom_ecp')
-ECP2   = require('zenroom_ecp2')
-H = HASH -- alias
-ELGAMAL = require('crypto_elgamal')
-COCONUT = require('crypto_coconut')
+O   = OCTET  -- alias
+INT = BIG    -- alias
+H   = HASH   -- alias
+I   = INSIDE -- alias
 
--- Zencode language interpreter
--- global class
 ZEN = require('zencode')
--- data schemas
+-- import/export schema helpers
 require('zencode_schemas')
--- basic keypair functions
--- require('zencode_keypair')
 -- base data functions
 require('zencode_data')
--- base encryption functions
--- require('zencode_aesgcm')
--- implicit certificates
--- require('zencode_ecqv')
--- coconut credentials
--- require('zencode_coconut')
-
-function content(var)
-   if type(var) == "zenroom.octet" then
-	  INSIDE.print(var:array())
-   else
-	  INSIDE.print(var)
-   end
-end
-
--- switch to deterministic (sorted) table iterators
-_G["pairs"]  = LAMBDA.pairs
-_G["ipairs"] = LAMBDA.pairs
-
--- map values in place, sort tables by keys for deterministic order
-function map(data, fun)
-   if(type(data) ~= "table") then
-	  error "map() first argument is not a table"
-	  return nil end
-   if(type(fun) ~= "function") then
-	  error "map() second argument is not a function"
-	  return nil end
-   out = {}
-   L.map(data,function(k,v) out[k] = fun(v) end)
-   return(out)
-end
-
--- validate against a schema
-function validate(data, schema)
-   if(type(data) ~= "table") then
-	  error("validate() first argument is "..type(data)..": cannot process validation") return end
-   if(type(schema) ~= "function") then
-	  error("validate() second argument is "..type(schema)..": invalid schema for validation") return end
-   local err = SCHEMA.CheckSchema(data,schema)
-   if err then
-	  if(data.schema) then error("Schema error: "..data.schema..
-								 "\n    "..S.print(err)) end
-	  I.print(data)
-	  return false
-   end
-   return true
-end
-
-function help(module)
-   if module == nil then
-	  print("usage: help(module)")
-	  print("example > help(octet)")
-	  print("example > help(ecdh)")
-	  print("example > help(ecp)")
-	  return
-   end
-   for k,v in pairs(module) do
-	  if type(v)~='table' and string.sub(k,1,1)~='_' then
-		 print("class method: "..k)
-	  end
-   end
-   if module.new == nil then return end
-   local inst = module.new()
-   for s,f in pairs(getmetatable(inst)) do
-	  if(string.sub(s,1,2)~='__') then print("object method: "..s) end
-   end
-end
-
-function read_json(data, validation)
-   if not data then
-	  error("read_json() missing data")
-	  -- os.exit()
-   end
-   out,res = JSON.decode(data)
-   if not out then
-	  if res then
-		 error("read_json() invalid json")
-		 error(res)
-		 -- os.exit()
-	  end
-   else
-	  if validation ~= nil then
-		 -- operate schema validation if argument is present
-		 assert(validate(out, validation), "read_json() invalid schema")
-	  end
-	  return out
-   end
-end
-function write_json(data)
-   t = type(data)
-   if(t == "zenroom.ecp") then
-	  print(JSON.encode(data:table()))
-	  return
-   else
-	  print(JSON.encode(data))
-   end
-end
-json_write = write_json
-json_read = read_json

@@ -14,11 +14,9 @@ docker-build-sgx: _docker_build _output
 # Build and push Docker image
 docker-release: _docker_build _docker_push _output
 
-# Image and binary can be overidden with env vars.
-DOCKER_IMAGE ?= riddleandcode/zenroom
-
 # Dockerfile
 DOCKER_FILE ?= ./Dockerfile
+DOCKER_IMAGE ?= riddleandcode/zenroom
 
 # Get the latest commit.
 GIT_COMMIT = $(strip $(shell git rev-parse --short HEAD))

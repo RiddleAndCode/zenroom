@@ -19,7 +19,6 @@
 -- Zencode implementation to encrypt and decrypt AES GCM messages
 -- uses random IV and sha256 by default
 
-local random = RNG.new()
 local order = ECP.order()
 local G = ECP.generator()
 local KDF_rounds = 10000
@@ -93,14 +92,14 @@ end)
 Given("I have my keypair", function()
          ZEN.assert(type(IN.KEYS[ACK.whoami]) == "table",
 					"Keypair not found for: "..ACK.whoami)
-		 local kp = import(IN.KEYS[ACK.whoami], 'ecdh_keypair')
+		 local kp = ZEN:valid('ecdh_keypair', IN.KEYS[ACK.whoami])
          ACK.pubkey = kp.public
          ACK.privkey = kp.private
 end)
 
 When("I create my new keypair", function()
 		ZEN.assert(ACK.whoami, "No identity specified for own keypair")
-		local key = INT.new(random,order)
+		local key = INT.new(RNG.new(),order)
 		local kp = { public = key * G,
 					 private = key }
 		OUT[ACK.whoami] = export(kp, 'ecdh_keypair', hex)
@@ -138,7 +137,7 @@ When("I use '' key to encrypt the output", function(keyname)
 								   text = ACK.draft.text,
 								   data = hex(ACK.draft.data) })
 		local cipher = { }
-		cipher.iv = random:octet(16)
+		cipher.iv = RNG.new():octet(16)
 		cipher.text, cipher.checksum =
 		   ECDH.aesgcm_encrypt(session, message, cipher.iv, "Zencode")
 		cipher.encoding = "hex"
@@ -150,7 +149,7 @@ end)
 
 Given("I receive an encrypted message", function()
 		 ZEN.assert(IN.aes_gcm, "No encrypted message found in input")
-		 ACK.aes_gcm = import(IN.aes_gcm, 'aes_gcm')
+		 ACK.aes_gcm = ZEN:valid('aes_gcm', IN.aes_gcm)
 end)
 
 When("I decrypt the message", function()

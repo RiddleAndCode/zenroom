@@ -45,8 +45,17 @@ recipient = ECDH.new('$curve')
 recipient:public(hex(data['pubkey']))
 sender = ECDH.new('$curve')
 sender:private(hex(keys['private']))
-enc = ECDH.encrypt(sender,recipient,str(data['message']),sender:public())
-print(JSON.encode(map(enc,hex)))
+iv = O.random(16)
+ciphermsg =
+  { header =
+      url64(JSON.encode({ public = sender:public(),
+	  	    		     iv = iv })) }
+session = sender:session(recipient)
+ciphermsg.text, ciphermsg.checksum =
+    ECDH.aead_encrypt(session,
+	 str('$secret'), iv,
+	  ciphermsg.header)
+print(JSON.encode(ciphermsg))
 EOF
 }
 
@@ -59,9 +68,13 @@ data = JSON.decode(DATA)
 recipient = ECDH.new('$curve')
 recipient:private(hex(keys['private']))
 sender = ECDH.new('$curve')
-sender:public(hex(data['header']))
-dec = ECDH.decrypt(recipient,sender,map(data,hex))
-print(dec.text:string())
+-- header is the public key of sender
+decode = { header = JSON.decode(url64(data.header)) }
+sender:public(decode.header.public)
+session = recipient:session(sender)
+decode.text, decode.checksum =
+    ECDH.aead_decrypt(session, url64(data.text), decode.header.iv, data.header)
+print(decode.text:str())
 EOF
 }
 
@@ -78,7 +91,7 @@ for curve in $curves; do
 			to=$pp
 			# print "ENCRYPT $from -> $to"
 			test_encrypt $p $pp
-			# cat $tmp/from-$from-to-$to-cryptomsg.json | json_pp
+			# cat $tmp/from-$from-to-$to-cryptomsg.json
 		done
 	done
 
@@ -89,6 +102,7 @@ for curve in $curves; do
 			to=$p
 			# print "DECRYPT $from -> $to"
 			res=`test_decrypt $from $to`
+			# print $res
 			if [[ "$secret" != "$res" ]]; then
 				print - "ERROR in integration ecdh test: $tmp"
 				print "DECRYPT $from -> $to"

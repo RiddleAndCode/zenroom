@@ -42,6 +42,19 @@ int zencode_exec_tobuf(char *script, char *conf, char *keys,
                        char *stdout_buf, size_t stdout_len,
                        char *stderr_buf, size_t stderr_len);
 
+// deterministic random calls for host applications providing their
+// own seed for the RNG
+int zenroom_exec_rng_tobuf(char *script, char *conf, char *keys,
+                           char *data, int verbosity,
+                           char *stdout_buf, size_t stdout_len,
+                           char *stderr_buf, size_t stderr_len,
+                           char *random_seed, size_t random_seed_len);
+int zencode_exec_rng_tobuf(char *script, char *conf, char *keys,
+                           char *data, int verbosity,
+                           char *stdout_buf, size_t stdout_len,
+                           char *stderr_buf, size_t stderr_len,
+                           char *random_seed, size_t random_seed_len);
+
 void set_debug(int lev);
 
 ////////////////////////////////////////
@@ -74,7 +87,9 @@ typedef struct {
 	size_t stderr_len;
 	size_t stderr_pos;
 
-
+	void *random_generator; // cast to RNG
+	char *random_seed;
+	size_t random_seed_len;
 
 	int errorlevel;
 	void *userdata; // anything passed at init (reserved for caller)
@@ -82,7 +97,7 @@ typedef struct {
 } zenroom_t;
 
 
-zenroom_t *zen_init(const char *conf, char *keys, char *data);
+zenroom_t *zen_init(const char *conf, char *keys, char *data, char *seed);
 int  zen_exec_script(zenroom_t *Z, const char *script);
 int  zen_exec_zencode(zenroom_t *Z, const char *script);
 void zen_teardown(zenroom_t *zenroom);

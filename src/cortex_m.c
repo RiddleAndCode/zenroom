@@ -1,6 +1,45 @@
+#include <stddef.h>
+#include <stdint.h>
+#include "zenroom.h"
 #ifdef ARCH_CORTEX
 extern unsigned int _start_heap;
-#define NULL (((void *)0))
+// #define NULL (((void *)0))
+//
+//
+
+
+/**  XXX Temporary proxy until these dependencies are resolved **/
+int _isatty(int fd)
+{
+    (void)fd;
+    return 0;
+}
+
+int _read(int fd, void *buf, size_t len)
+{
+    return -1;
+}
+
+int _write(int fd, const void *buf, size_t len)
+{
+    return -1;
+}
+
+int _lseek(int fd, int off, int whence)
+{
+    return 0;
+}
+
+int _fstat(int fd, void *st)
+{
+    return -1;
+}
+
+int _close(int fd)
+{
+    return 0;
+}
+
 
 void abort(void)
 {
@@ -11,7 +50,7 @@ void abort(void)
 
 void exit(int val)
 {
-
+	(void)val;
 }
 
 void * _sbrk(unsigned int incr)
@@ -49,9 +88,6 @@ extern unsigned int _end_bss;
 extern unsigned int _end_stack;
 extern unsigned int _start_heap;
 
-static int zeroed_variable_in_bss;
-static int initialized_variable_in_data = 42;
-
 #define STACK_PAINTING
 
 static volatile unsigned int avail_mem = 0;
@@ -80,7 +116,7 @@ void isr_reset(void) {
     avail_mem = &_end_stack - &_start_heap;
     {
         asm volatile("mrs %0, msp" : "=r"(sp));
-        dst = ((unsigned int *)(&_end_stack)) - (8192 / sizeof(unsigned int)); ;
+        dst = ((unsigned int *)(&_end_stack)) - (8192 / 4 ); // 32bit
         while ((unsigned int)dst < sp) {
             *dst = 0xDEADC0DE;
             dst++;
@@ -188,8 +224,24 @@ void (* const IV[])(void) =
 
 };
 
+// 20k i/o buffer
+#define ZEN_BUF_LEN 20480
+static const char zenroom_test_code[] = "print('Hello, world!\r\n')";
+// char __attribute__((section(".zenmem")))
+char zen_stderr[ZEN_BUF_LEN];
+// char __attribute__((section(".zenmem")))
+char zen_stdout[ZEN_BUF_LEN];
+
+/* TODO: Initialize target-specific rng to generate initial randomness */
+
+static const char PUF_RNG[] = "uvVu3thQapaKX1Nso6ElSkzZafq3kHCG";
+
 void main(void)
 {
+    zenroom_exec_rng_tobuf(zenroom_test_code, NULL, NULL, NULL, 1,
+                           zen_stdout, ZEN_BUF_LEN,
+                           zen_stderr, ZEN_BUF_LEN,
+                           PUF_RNG, 32);
 }
 
 

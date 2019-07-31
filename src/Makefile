@@ -23,17 +23,18 @@ BRANCH := $(shell git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,')
 HASH := $(shell git rev-parse --short HEAD)
 CFLAGS  += -I. -I../lib/lua53/src -I../lib/milagro-crypto-c/include -Wall -Wextra
 SOURCES := \
-	jutils.o zenroom.o zen_error.o \
-	lua_functions.o lua_modules.o lualibs_detected.o \
+	cli.o jutils.o zenroom.o zen_error.o \
+	lua_functions.o lua_modules.o lualibs_detected.o lua_shims.o \
 	json.o json_strbuf.o json_fpconv.o \
-	base58.o cmsgpack.o \
+	encoding.o base58.o cmsgpack.o \
 	umm_malloc.o zen_memory.o \
 	zen_io.o repl.o \
 	zen_octet.o zen_ecp.o zen_ecp2.o zen_big.o \
 	zen_fp12.o zen_random.o zen_hash.o \
 	zen_ecdh.o zen_ecdh_factory.o \
 	randombytes.o \
-	cortex_m.o benchmark.o
+	cortex_m.o benchmark.o \
+	redis_mod.o
 
 all: shared
 
@@ -52,8 +53,13 @@ musl: ${SOURCES}
 linux: ${SOURCES}
 	${CC} ${CFLAGS} ${SOURCES} -o zenroom-shared ${LDFLAGS} ${LDADD}
 
+# available vars to identify the build:
+# ${ARCH} ${VERSION} ${BRANCH} ${HASH}
 linux-lib: ${SOURCES}
-	${CC} ${CFLAGS} ${SOURCES} -o libzenroom-${ARCH}-${VERSION}-${BRANCH}-${HASH}.so ${LDFLAGS} ${LDADD}
+	${CC} ${CFLAGS} ${SOURCES} -o libzenroom-${ARCH}-${VERSION}.so ${LDFLAGS} ${LDADD}
+
+redis: ${SOURCES}
+	${CC} ${CFLAGS} ${SOURCES} -o redis_zenroom.so-${ARCH}.so ${LDFLAGS} ${LDADD}
 
 python: ${SOURCES}
 	${CC} -shared ${SOURCES} zen_python.o -o _zenroom.so ${LDFLAGS} ${LDADD}
@@ -115,6 +121,7 @@ clean:
 	rm -f zenroom-shared
 	rm -f zenroom.js
 	rm -f zenroom.js.mem
+	rm -f zenroom.wasm
 	rm -f zenroom.html
 
 .c.o:
