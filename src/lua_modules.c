@@ -55,6 +55,7 @@ extern int luaopen_ecp2(lua_State *L);
 extern int luaopen_fp12(lua_State *L);
 extern int luaopen_big(lua_State *L);
 extern int luaopen_hash(lua_State *L);
+extern int luaopen_ring(lua_State *L);
 
 // really loaded in lib/lua53/linit.c
 // align here for reference
@@ -177,6 +178,8 @@ int zen_require(lua_State *L) {
 		luaL_requiref(L, s, lua_cjson_safe_new, 1); }
 	else if(strcasecmp(s, "msgpack")  ==0) {
 		luaL_requiref(L, s, luaopen_cmsgpack_safe, 1); }
+	else if(strcasecmp(s, "ring")  ==0) {
+		luaL_requiref(L, s, luaopen_ring, 1); }
 	else {
 		// shall we bail out and abort execution here?
 		warning(L, "required extension not found: %s",s);

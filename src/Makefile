@@ -21,7 +21,7 @@ VERSION := $(shell cat ../VERSION)
 ARCH := $(shell uname -m)
 BRANCH := $(shell git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,')
 HASH := $(shell git rev-parse --short HEAD)
-CFLAGS  += -I. -I../lib/lua53/src -I../lib/milagro-crypto-c/include -Wall -Wextra
+CFLAGS  += -I. -I../lib/lua53/src -I../lib/milagro-crypto-c/include -I../lib/ring/target/include -Wall -Wextra
 SOURCES := \
 	cli.o jutils.o zenroom.o zen_error.o \
 	lua_functions.o lua_modules.o lualibs_detected.o lua_shims.o \
@@ -34,6 +34,7 @@ SOURCES := \
 	zen_ecdh.o zen_ecdh_factory.o \
 	randombytes.o \
 	cortex_m.o \
+	ring.o \
 	redis_mod.o
 
 all: shared

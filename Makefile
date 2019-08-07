@@ -106,12 +106,17 @@ milagro:
 check-milagro: milagro
 	CC=${gcc} CFLAGS="${cflags}" make -C ${pwd}/lib/milagro-crypto-c test
 
+ring:
+	@echo "-- Building ring (${system})"
+	TARGET=$(rusttarget) make -C ${pwd}/lib/ring build
+
 # -------------------
 # Test suites for all platforms
 include ${pwd}/build/tests.mk
 
 clean:
 	make clean -C ${pwd}/lib/lua53/src
+	make clean -C ${pwd}/lib/ring
 	make clean -C ${pwd}/lib/milagro-crypto-c
 	rm -f ${pwd}/lib/milagro-crypto-c/CMakeCache.txt
 	rm -rf ${pwd}/lib/milagro-crypto-c/CMakeFiles

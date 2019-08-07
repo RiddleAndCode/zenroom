@@ -1,35 +1,35 @@
 musl: ldadd += /usr/lib/${ARCH}-linux-musl/libc.a
-musl: apply-patches lua53 embed-lua milagro
+musl: apply-patches lua53 embed-lua milagro ring
 	CC=${gcc} AR="${ar}" CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \
 		make -C src musl
 		@cp -v src/zenroom-static build/zenroom.x86
 
 musl-local: ldadd += /usr/local/musl/lib/libc.a
-musl-local: apply-patches lua53 embed-lua milagro
+musl-local: apply-patches lua53 embed-lua milagro ring
 	CC=${gcc} AR="${ar}" CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \
 		make -C src musl
 
-musl-local: apply-patches lua53 embed-lua milagro
+musl-local: apply-patches lua53 embed-lua milagro ring
 CC=${gcc} AR="${ar}" CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \
 make -C src musl
 
 musl-system: gcc := gcc
 musl-system: ldadd += -lm
-musl-system: apply-patches lua53 embed-lua milagro
+musl-system: apply-patches lua53 embed-lua milagro ring
 	CC=${gcc} AR="${ar}" CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \
 		make -C src musl
 
-linux: apply-patches lua53 milagro embed-lua
+linux: apply-patches lua53 milagro embed-lua ring
 	CC=${gcc} AR="${ar}"  CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \
 		make -C src linux
 
-android-arm android-x86: apply-patches lua53 milagro embed-lua
+android-arm android-x86: apply-patches lua53 milagro embed-lua ring
 	CC=${gcc} CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \
 	LD="${ld}" RANLIB="${ranlib}" AR="${ar}" \
 		make -C src $@
 
 cortex-arm: ldflags += -Wl,-Map=./zenroom.map
-cortex-arm:	apply-patches cortex-lua53 milagro embed-lua
+cortex-arm:	apply-patches cortex-lua53 milagro embed-lua ring
 	CC=${gcc} AR="${ar}" OBJCOPY="${objcopy}" CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \
 	make -C src cortex-arm
 
@@ -57,22 +57,22 @@ linux-sanitizer: linux
 		./src/zenroom-shared -i -d
 
 linux-lib: cflags += -shared -DLIBRARY
-linux-lib: apply-patches lua53 milagro embed-lua
+linux-lib: apply-patches lua53 milagro embed-lua ring
 	CC=${gcc} CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \
 		make -C src linux-lib
 
 linux-lib-debug: cflags += -shared -DLIBRARY
-linux-lib-debug: apply-patches lua53 milagro embed-lua
+linux-lib-debug: apply-patches lua53 milagro embed-lua ring
 	CC=${gcc} CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \
 	make -C src linux-lib
 
 
 linux-redis: cflags += -shared -DLIBRARY
-linux-redis: apply-patches lua53 milagro embed-lua
+linux-redis: apply-patches lua53 milagro embed-lua ring
 	CC=${gcc} CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \
 		make -C src redis
 
-linux-python3: apply-patches lua53 milagro embed-lua
+linux-python3: apply-patches lua53 milagro embed-lua ring
 	swig -python -py3 ${pwd}/build/swig.i
 	${gcc} ${cflags} -c ${pwd}/build/swig_wrap.c \
 		-o src/zen_python.o
@@ -80,7 +80,7 @@ linux-python3: apply-patches lua53 milagro embed-lua
 		make -C src python
 	@mkdir -p ${pwd}/build/python3 && cp -v ${pwd}/src/_zenroom.so ${pwd}/build/python3
 
-linux-python2: apply-patches lua53 milagro embed-lua
+linux-python2: apply-patches lua53 milagro embed-lua ring
 	swig -python ${pwd}/build/swig.i
 	${gcc} ${cflags} -c ${pwd}/build/swig_wrap.c \
 		-o src/zen_python.o
@@ -88,7 +88,7 @@ linux-python2: apply-patches lua53 milagro embed-lua
 		make -C src python
 	@mkdir -p ${pwd}/build/python2 && cp -v ${pwd}/src/_zenroom.so ${pwd}/build/python2
 
-linux-go: apply-patches lua53 milagro embed-lua
+linux-go: apply-patches lua53 milagro embed-lua ring
 	swig -go -cgo -intgosize 32 ${pwd}/build/swig.i
 	${gcc} ${cflags} -c ${pwd}/build/swig_wrap.c -o src/zen_go.o
 	CC=${gcc} CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \
@@ -96,7 +96,7 @@ linux-go: apply-patches lua53 milagro embed-lua
 	@mkdir -p ${pwd}/build/go && cp -v ${pwd}/src/libzenroomgo.so ${pwd}/build/go
 
 linux-java: cflags += -I /opt/jdk/include -I /opt/jdk/include/linux
-linux-java: apply-patches lua53 milagro embed-lua
+linux-java: apply-patches lua53 milagro embed-lua ring
 	swig -java ${pwd}/build/swig.i
 	${gcc} ${cflags} -c ${pwd}/build/swig_wrap.c -o src/zen_java.o
 	CC=${gcc} CFLAGS="${cflags}" LDFLAGS="${ldflags}" LDADD="${ldadd}" \

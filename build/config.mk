@@ -35,6 +35,13 @@ ldadd += ${milib}/libamcl_curve_GOLDILOCKS.a
 ldadd += ${milib}/libamcl_curve_SECP256K1.a
 ldadd += ${milib}/libamcl_core.a
 
+#--------------
+# ring settings
+rusttarget := x86_64-unknown-linux-gnu
+ringlib := ${pwd}/lib/ring/target/lib
+ldadd += ${ringlib}/libzenroom_ring.a
+ldadd += -ldl
+
 # ------------------------
 # target specific settings
 ifneq (,$(findstring debug,$(MAKECMDGOALS)))
@@ -100,6 +107,7 @@ gcc := musl-gcc
 cflags := -Os -static -Wall -std=gnu99 -fPIC ${cflags_protection} -D'ARCH=\"MUSL\"' -D__MUSL__ -DARCH_MUSL
 ldflags := -static
 system := Linux
+rusttarget := x86_64-unknown-linux-musl
 endif
 
 ifneq (,$(findstring linux,$(MAKECMDGOALS)))
