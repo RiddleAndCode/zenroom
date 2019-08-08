@@ -76,8 +76,8 @@ static int lua_ring_ecdsa_keygen(lua_State *L) {
 
     pk->len = RING_ECDSA_PUBLIC_LEN;
     sk->len = RING_ECDSA_PRIVATE_LEN;
-    rust_ring_ecdsa_generate_private(sk->val);
-    rust_ring_ecdsa_public_from_private(sk->val, pk->val);
+    rust_ring_ecdsa_generate_private((unsigned char*)sk->val);
+    rust_ring_ecdsa_public_from_private((unsigned char*)sk->val, (unsigned char*)pk->val);
 
     e->pubkey = pk;
     e->seckey = sk;
@@ -124,7 +124,7 @@ static int lua_ring_ecdsa_private(lua_State *L) {
 	e->seckey = o_arg(L, 2); SAFE(e->seckey);
 	octet *pk = o_new(L, RING_ECDSA_PUBLIC_LEN +0x0f); SAFE(pk);
     pk->len = RING_ECDSA_PUBLIC_LEN;
-    rust_ring_ecdsa_public_from_private(e->seckey->val, pk->val);
+    rust_ring_ecdsa_public_from_private((unsigned char*)e->seckey->val, (unsigned char*)pk->val);
     e->pubkey = pk;
     return 1;
 }
@@ -135,7 +135,7 @@ static int lua_ring_ecdsa_sign(lua_State *L) {
 	octet *m = o_arg(L,2); SAFE(m);
     octet *s = o_new(L, RING_ECDSA_SIGNATURE_LEN +0x0f); SAFE(s);
     s->len = RING_ECDSA_SIGNATURE_LEN;
-    rust_ring_ecdsa_sign(e->seckey->val, m->val, m->len, s->val);
+    rust_ring_ecdsa_sign((unsigned char*)e->seckey->val, (unsigned char*)m->val, m->len, (unsigned char*)s->val);
 	return 1;
 }
 
@@ -144,7 +144,7 @@ static int lua_ring_ecdsa_verify(lua_State *L) {
 	ring_ecdsa *e = ring_ecdsa_arg(L,1); SAFE(e);
 	octet *m = o_arg(L,2); SAFE(m);
 	octet *s = o_arg(L,3); SAFE(s);
-    lua_pushboolean(L, rust_ring_ecdsa_verify(e->pubkey->val, m->val, m->len, s->val));
+    lua_pushboolean(L, rust_ring_ecdsa_verify((unsigned char*)e->pubkey->val, (unsigned char*)m->val, m->len, (unsigned char*)s->val));
 	return 1;
 }
 

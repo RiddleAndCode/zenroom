@@ -1,3 +1,5 @@
+CARGO_BIN ?= cargo
+
 NAME := zenroom_ring
 ARCHIVE := lib$(NAME).a
 
@@ -10,12 +12,12 @@ default: usage
 build:
 	mkdir -p $(LIB)
 	mkdir -p $(INCLUDE)
-	cargo build --release --target $(TARGET)
+	$(CARGO_BIN) build --release --target $(TARGET)
 	cp -rf target/$(TARGET)/release/$(ARCHIVE) $(LIB)/$(ARCHIVE)
 
 .PHONY: clean
 clean:
-	cargo clean
+	$(CARGO_BIN) clean
 
 .PHONY: clean
 usage:
